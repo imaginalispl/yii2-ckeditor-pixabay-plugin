@@ -1,0 +1,13 @@
+{
+    "name": "imaginalis/yii2-ckeditor-pixabay-plugin",
+    "description": "pixabay plugin",
+    "type": "yii2-extension",
+    "require": {
+		"imaginalis/ckeditor": "*"
+    },
+    "extra": {
+        "asset-installer-paths": {
+            "bower-asset-library": "vendor/bower"
+        }
+    }
+}
