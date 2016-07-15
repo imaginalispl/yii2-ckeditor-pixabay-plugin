@@ -9,6 +9,10 @@
 		icons: 'icon',
 		init: function(editor)
 		{
+			pixabayLogo = $('<img style="display: none" src="'+this.path+'images/pixabayLogo.png" alt="Pixabay"/>');
+			$('body').append(pixabayLogo);
+
+			CKEDITOR.config.dialog_noConfirmCancel = true;
 			editor.addCommand('pixabay', new CKEDITOR.dialogCommand('pixabay'));
 
 			editor.ui.addButton('pixabay',
@@ -22,9 +26,9 @@
 			CKEDITOR.dialog.add('pixabay', function()
 			{
 				return {
-					title : 'Search for image in Pixabay',
-					minWidth : 570,
-					minHeight : 500,
+					title : 'Search for image on Pixabay',
+					minWidth : 580,
+					minHeight : 510,
 					contents :
 						[{
 							id : 'pixabay',
@@ -32,7 +36,7 @@
 							elements : [
 								{
 									type: 'html',
-									html: '<a href="https://pixabay.com/" target="_blank" style="display: block; max-width: 400px;margin: auto;"><img style="max-width: 400px" src="https://pixabay.com/static/img/public/leaderboard_a.png" alt="Pixabay"></a>'
+									html: '<a href="https://pixabay.com/" target="_blank" style="display: block; max-width: 400px;margin: auto;" class="pixabayLogoLink"><img src="'+pixabayLogo.attr('src')+'"/></a>'
 								},
 								{
 									id : 'txtEmbed',
@@ -45,7 +49,7 @@
 										var	query = this.getValue();
 										var url = this._.dialog.getParentEditor().config.pixabaySearchImagesUrl;
 										$(this._.dialog.getElement().$).find('.selectedImageSrc').attr('data-query', query);
-										ckeditorImagesQuery(query, 1, url);
+										ckeditorImagesQuery(query, 1, url, CKEDITOR.currentInstance.name);
 									},
 									validate : function ()
 									{
@@ -69,7 +73,7 @@
 								{
 									id : 'pixabayImagesContainer',
 									type : 'html',
-									html : '<div class="pixabayImagesContainer"></div>',
+									html : '<div class="pixabayImagesContainer"></div><div class="pixabayOverlay"><span style="display: none; position: absolute; top: 25%; left: 34%;"><img src="'+CKEDITOR.plugins.get('pixabay').path+'images/ajaxLoader.svg"</span></div>',
 									onClick : function(api)
 									{
 										var target = $(api.data.getTarget().$);
@@ -112,7 +116,7 @@
 												var query = $(this._.dialog.getElement().$).find('.selectedImageSrc').attr('data-query');
 												var url = this._.dialog.getParentEditor().config.pixabaySearchImagesUrl;
 
-												ckeditorImagesQuery(query, page, url);
+												ckeditorImagesQuery(query, page, url, CKEDITOR.currentInstance.name, true);
 											}
 										},
 										{
@@ -127,7 +131,7 @@
 												var query = $(this._.dialog.getElement().$).find('.selectedImageSrc').attr('data-query');
 												var url = this._.dialog.getParentEditor().config.pixabaySearchImagesUrl;
 
-												ckeditorImagesQuery(query, page, url);
+												ckeditorImagesQuery(query, page, url, CKEDITOR.currentInstance.name, true);
 											}
 										},
 									],
@@ -136,26 +140,25 @@
 						}],
 						onOk : function()
 						{
+							var ckeditorDialog = $('.cke_editor_'+CKEDITOR.currentInstance.name+'_dialog');
 							var urlForAjax = this.getParentEditor().config.pixabaySaveImageUrl;
-							var dialog = this._.element.$;
-							var selectedImageSrcDiv = $(dialog).find('.selectedImageSrc');
+							var selectedImageSrcDiv = ckeditorDialog.find('.selectedImageSrc');
 							var selectedImageSrc = $(selectedImageSrcDiv).attr('data-src');
 							var savedImageSrc = '';
+							var instance = this.getParentEditor();
 
 							$.ajax({
 								url: urlForAjax,
-								async: false,
 								data: {src: selectedImageSrc},
 								success: function(result)
 								{
 									result = $.parseJSON(result);
 									savedImageSrc = result.imagePath;
+
+									var element = CKEDITOR.dom.element.createFromHtml('<img src="'+savedImageSrc+'"/>');
+									instance.insertElement(element);
 								}
 							});
-
-							var element = CKEDITOR.dom.element.createFromHtml('<img src="'+savedImageSrc+'"/>');
-							var instance = this.getParentEditor();
-							instance.insertElement(element);
 						}
 				};
 			});
@@ -163,69 +166,106 @@
 	});
 })();
 
-function ckeditorImagesQuery(query, page, url)
+var previousPage = [];
+var previousQuery = [];
+var timer = 0;
+function ckeditorImagesQuery(query, page, url, ckeditorName, immediately)
 {
-	$.ajax({
-		url: url,
-		data: {query: query, page: page, withoutView: true},
-		success: function(result)
+	immediately = typeof immediately !== 'undefined' ? immediately : false;
+
+	if(immediately)
+	{
+		ajaxQuery(query, page, url, ckeditorName);
+	}
+	else
+	{
+		clearTimeout(timer);
+		timer = setTimeout(function()
 		{
-			var result = $.parseJSON(result);
-			var imageNumber = 0;
-			var imagesPerRow = 5;
-			var html = '';
-
-			if(result.imagePatchs.length > 0)
-			{
-				html += '<style>';
-				html += 'div.pixabayImagesContainer div.imageContainer img.imageToSelect {max-width: 100px; max-height: 100px}';
-				html += 'div.pixabayImagesContainer div.selected.imageContainer {background-color: #69b10b;}';
-				html += 'div.pixabayImagesContainer div.imageContainer {display:table-cell; vertical-align:middle; text-align:center; height:110px; width:110px; background-color: #f5f5f5}';
-				html += 'div.imageContainerContainer {display: inline-block; margin: 0px 2px;}';
-				html += '</style>';
-
-				$(result.imagePatchs).each(function(element)
-				{
-					var src = result.imagePatchs[element].previewURL;
-					var fullSrc = result.imagePatchs[element].webformatURL;
-
-					if(imageNumber % imagesPerRow === 0)
-						html += '<br/>';
-
-					imageNumber++;
-
-					html += '<div class="imageContainerContainer"><div class="imageContainer">';
-					html += '<img class="imageToSelect" data-full-src="'+fullSrc+'" src="'+src+'"/>';
-					html += '</div></div>';
-				});
-			}
-			else
-				html += 'Sorry, we couldn\'t find any matches.';
-
-			$('.pixabayImagesContainer').html(html);
-
-			var nextPageButton = $('td[role="presentation"] a[title="nextPageButton"]');
-			if(result.pagination.nextPageAvailable === true)
-			{
-				var nextPageNumber = parseFloat(result.pagination.currentPage) + 1;
-
-				nextPageButton.show();
-				nextPageButton.attr('data-page', nextPageNumber);
-			}
-			else
-				nextPageButton.hide();
-
-			var previousPageButton = $('td[role="presentation"] a[title="previousPageButton"]');
-			if(result.pagination.previousPageAvailable === true)
-			{
-				var previousPageNumber = parseFloat(result.pagination.currentPage) - 1;
-
-				previousPageButton.show();
-				previousPageButton.attr('data-page', previousPageNumber);
-			}
-			else
-				previousPageButton.hide();
-		}
-	});
+			ajaxQuery(query, page, url, ckeditorName);
+		}, 500);
+	}
 }
 
+function ajaxQuery(query, page, url, ckeditorName)
+{
+	if(query != '' && (query != previousQuery[ckeditorName] || page != previousPage[ckeditorName]))
+	{
+		ckeditorDialog = $('.cke_editor_'+ckeditorName+'_dialog');
+
+		$.ajax({
+			url: url,
+			data: {query: query, page: page, withoutView: true},
+			beforeSend: function()
+			{
+				ckeditorDialog.find('div.pixabayOverlay').fadeIn();
+				ckeditorDialog.find('div.pixabayOverlay span').fadeIn();
+				ckeditorDialog.find('.pixabayImagesContainer').parent().css('position', 'relative');
+			},
+			success: function(result)
+			{
+				previousPage[ckeditorName] = page;
+				previousQuery[ckeditorName] = query;
+				var result = $.parseJSON(result);
+				var imageNumber = 0;
+				var imagesPerRow = 5;
+				var html = '';
+
+				if(result.imagePatchs.length > 0)
+				{
+					html += '<style>';
+					html += ckeditorDialog.selector + ' div.pixabayOverlay span { position: absolute; top: 25%; left: 34%;}';
+					html += ckeditorDialog.selector + ' div.pixabayOverlay {top: 1%; position:absolute; width:100%; height:106%; background-color:rgba(255,255,255,0.8); text-align:center; z-index:999; display:block;}';
+					html += ckeditorDialog.selector + ' div.pixabayImagesContainer div.imageContainer img.imageToSelect {max-width: 100px; max-height: 100px}';
+					html += ckeditorDialog.selector + ' div.pixabayImagesContainer div.selected.imageContainer {background-color: #69b10b;}';
+					html += ckeditorDialog.selector + ' div.pixabayImagesContainer div.imageContainer {display:table-cell; vertical-align:middle; text-align:center; height:110px; width:110px; background-color: #f5f5f5}';
+					html += ckeditorDialog.selector + ' div.imageContainerContainer {display: inline-block; margin: 0px 2px;}';
+					html += '</style>';
+
+					$(result.imagePatchs).each(function(element)
+					{
+						var src = result.imagePatchs[element].previewURL;
+						var fullSrc = result.imagePatchs[element].webformatURL;
+
+						if(imageNumber % imagesPerRow === 0)
+							html += '<br/>';
+
+						imageNumber++;
+
+						html += '<div class="imageContainerContainer"><div class="imageContainer">';
+						html += '<img class="imageToSelect" data-full-src="'+fullSrc+'" src="'+src+'"/>';
+						html += '</div></div>';
+					});
+				}
+				else
+					html += 'Sorry, we couldn\'t find any matches.';
+
+				ckeditorDialog.find('.pixabayImagesContainer').html(html);
+				ckeditorDialog.find('div.pixabayOverlay').fadeOut();
+				ckeditorDialog.find('div.pixabayOverlay span').fadeOut();
+
+				var nextPageButton = ckeditorDialog.find('td[role="presentation"] a[title="nextPageButton"]');
+				if(result.pagination.nextPageAvailable === true)
+				{
+					var nextPageNumber = parseFloat(result.pagination.currentPage) + 1;
+
+					nextPageButton.show();
+					nextPageButton.attr('data-page', nextPageNumber);
+				}
+				else
+					nextPageButton.hide();
+
+				var previousPageButton = ckeditorDialog.find('td[role="presentation"] a[title="previousPageButton"]');
+				if(result.pagination.previousPageAvailable === true)
+				{
+					var previousPageNumber = parseFloat(result.pagination.currentPage) - 1;
+
+					previousPageButton.show();
+					previousPageButton.attr('data-page', previousPageNumber);
+				}
+				else
+					previousPageButton.hide();
+			}
+		});
+	}
+}
