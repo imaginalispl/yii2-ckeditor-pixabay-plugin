@@ -9,9 +9,6 @@
 		icons: 'icon',
 		init: function(editor)
 		{
-			pixabayLogo = $('<img style="display: none" src="'+this.path+'images/pixabayLogo.png" alt="Pixabay"/>');
-			$('body').append(pixabayLogo);
-
 			CKEDITOR.config.dialog_noConfirmCancel = true;
 			editor.addCommand('pixabay', new CKEDITOR.dialogCommand('pixabay'));
 
@@ -26,7 +23,7 @@
 			CKEDITOR.dialog.add('pixabay', function()
 			{
 				return {
-					title : 'Search for image on Pixabay',
+					title : 'Search for image',
 					minWidth : 580,
 					minHeight : 510,
 					contents :
@@ -34,10 +31,6 @@
 							id : 'pixabay',
 							expand : true,
 							elements : [
-								{
-									type: 'html',
-									html: '<a href="https://pixabay.com/" target="_blank" style="display: block; max-width: 400px;margin: auto;" class="pixabayLogoLink"><img src="'+pixabayLogo.attr('src')+'"/></a>'
-								},
 								{
 									id : 'txtEmbed',
 									type : 'text',
