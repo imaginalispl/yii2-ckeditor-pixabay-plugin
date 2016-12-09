@@ -88,14 +88,24 @@
 												target.parent().addClass('selected');
 
 											if(target.hasClass('imageContainer'))
+											{
 												var selectedImageSrc = target.find('img').attr('data-full-src');
+												var externalId = target.find('img').attr('external-id');
+												var sourceType = target.find('img').attr('source-type');
+											}
 											else
+											{
 												var selectedImageSrc = target.attr('data-full-src');
+												var externalId = target.attr('external-id');
+												var sourceType = target.attr('source-type');
+											}
 
 											var dialog = this._.dialog.getElement().$;
 											var selectedImageSrcDiv = $(dialog).find('.selectedImageSrc');
 
 											$(selectedImageSrcDiv).attr('data-src', selectedImageSrc);
+											$(selectedImageSrcDiv).attr('external-id', externalId);
+											$(selectedImageSrcDiv).attr('source-type', sourceType);
 										}
 									}
 								},
@@ -143,7 +153,10 @@
 							var ckeditorDialog = $('.cke_editor_'+CKEDITOR.currentInstance.name+'_dialog');
 							var urlForAjax = this.getParentEditor().config.pixabaySaveImageUrl;
 							var selectedImageSrcDiv = ckeditorDialog.find('.selectedImageSrc');
+
 							var selectedImageSrc = $(selectedImageSrcDiv).attr('data-src');
+							var externalId = $(selectedImageSrcDiv).attr('external-id');
+							var sourceType = $(selectedImageSrcDiv).attr('source-type');
 							var savedImageSrc = '';
 							var instance = this.getParentEditor();
 
@@ -155,7 +168,7 @@
 									result = $.parseJSON(result);
 									savedImageSrc = result.imagePath;
 
-									var element = CKEDITOR.dom.element.createFromHtml('<img src="'+savedImageSrc+'"/>');
+									var element = CKEDITOR.dom.element.createFromHtml('<img class="imageAdded" title="'+sourceType+'-'+externalId+'" src="'+savedImageSrc+'"/>');
 									instance.insertElement(element);
 								}
 							});
@@ -226,6 +239,8 @@ function ajaxQuery(query, page, url, ckeditorName)
 					{
 						var src = result.imagePatchs[element].previewURL;
 						var fullSrc = result.imagePatchs[element].webformatURL;
+						var externalId = result.imagePatchs[element].externalId;
+						var sourceType = result.imagePatchs[element].sourceType;
 
 						if(imageNumber % imagesPerRow === 0)
 							html += '<br/>';
@@ -233,7 +248,7 @@ function ajaxQuery(query, page, url, ckeditorName)
 						imageNumber++;
 
 						html += '<div class="imageContainerContainer"><div class="imageContainer">';
-						html += '<img class="imageToSelect" data-full-src="'+fullSrc+'" src="'+src+'"/>';
+						html += '<img class="imageToSelect" external-id="'+externalId+'" source-type="'+sourceType+'" data-full-src="'+fullSrc+'" src="'+src+'"/>';
 						html += '</div></div>';
 					});
 				}
